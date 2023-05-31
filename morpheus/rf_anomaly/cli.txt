@@ -1,0 +1,14 @@
+morpheus --log_level=DEBUG \
+   run --num_threads=1 --pipeline_batch_size=8 --model_max_batch_size=32 \
+   pipeline-fil \
+   --model_fea_length 52 \
+   --label anomalous \
+   --columns_file cols.txt \
+   from-file --filename in.csv \
+   deserialize \
+   preprocess \
+   inf-triton --model_name=rf_anomaly --server_url=triton:8000 \
+   monitor --description "Inference Rate" --smoothing=0.001 --unit inf \
+   add-scores \
+   serialize \
+   to-file --filename out.csv --overwrite

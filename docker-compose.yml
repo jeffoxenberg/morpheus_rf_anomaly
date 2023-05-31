@@ -1,0 +1,75 @@
+version: "3.8"
+services:
+    triton:
+        container_name: triton
+        image: nvcr.io/nvidia/tritonserver:23.04-py3
+        command: tritonserver --model-repository=/models --exit-on-error=false --log-info=true --strict-readiness=false --model-control-mode=explicit --load-model=*
+        ports:
+            - "8000:8000"
+            - "8001:8001"
+            - "8002:8002"
+        volumes:
+            - type: bind
+              source: ./models
+              target: /models
+        deploy:
+            resources:
+                reservations:
+                    devices:
+                        - driver: nvidia
+                          count: 1
+                          capabilities: [gpu]
+    jupyter:
+        container_name: jupyter
+        #image: jupyter/datascience-notebook:hub-4.0.0
+        build: jupyter/.
+        ports:
+            - "8888:8888"
+        volumes:
+          - type: bind
+            source: ./models
+            target: /models
+          - type: bind
+            source: ./code
+            target: /home/jovyan/work
+        user: root
+        environment:
+            GRANT_SUDO: "yes"
+        deploy:
+            resources:
+                reservations:
+                    devices:
+                        - driver: nvidia
+                          count: 1
+                          capabilities: [gpu]
+    morpheus:
+        container_name: morpheus
+        image: nvcr.io/nvidia/morpheus/morpheus:v23.03.01-runtime
+        volumes:
+          - type: bind
+            source: ./morpheus
+            target: /morpheus
+        command: tail -f /dev/null
+        deploy:
+            resources:
+                reservations:
+                    devices:
+                        - driver: nvidia
+                          count: 1
+                          capabilities: [gpu]
+    kafka:
+        container_name: kafka
+        image: quay.io/strimzi/kafka:latest-kafka-2.8.1-amd64
+        command:
+          [
+            "sh",
+            "-c",
+            "export CLUSTER_ID=$$(bin/kafka-storage.sh random-uuid) && bin/kafka-storage.sh format --ignore-formatted -t $$CLUSTER_ID -c config/kraft/server.properties &&              bin/kafka-server-start.sh config/kraft/server.properties --override advertised.listeners=$${KAFKA_ADVERTISED_LISTENERS} --override              listener.security.protocol.map=$${KAFKA_LISTENER_SECURITY_PROTOCOL_MAP} --override listeners=$${KAFKA_LISTENERS}",
+          ]
+        ports:
+          - "9092:9092"
+        environment:
+          LOG_DIR: "/tmp/logs"
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+          KAFKA_LISTENERS: PLAINTEXT://:29092,PLAINTEXT_HOST://:9092,CONTROLLER://:9093
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://kafka:9092

@@ -31,8 +31,6 @@ from morpheus.stages.inference.triton_inference_stage import TritonInferenceStag
 from morpheus.stages.postprocess.add_classifications_stage import AddClassificationsStage
 from morpheus.utils.logger import configure_logging
 
-from splunk_ingest_stage import WriteToSplunkStage
-
 
 @click.command()
 @click.option(
